@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StatLab AI — Simulador y Calculadora de Estadística</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- KaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f8fafc;
+    }
+    .katex-display {
+      margin: 0.5rem 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+    .tab-active {
+      background-color: #4f46e5;
+      color: #ffffff;
+      box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+    }
+    .tab-inactive {
+      background-color: #ffffff;
+      color: #475569;
+      border: 1px solid #e2e8f0;
+    }
+    .tab-inactive:hover {
+      background-color: #f1f5f9;
+    }
+  </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col">
+
+  <!-- Navbar -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="bg-indigo-600 text-white p-2 rounded-xl shadow-sm">
+          <i data-lucide="sigma" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-slate-900 leading-tight">StatLab <span class="text-indigo-600">AI</span></h1>
+          <p class="text-xs text-slate-500">Simulador Probabilístico Paso a Paso</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button onclick="openAiModal()" class="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-sm font-medium px-4 py-2 rounded-lg shadow-sm transition">
+          <i data-lucide="sparkles" class="w-4 h-4"></i>
+          <span>Resolver enunciado con IA</span>
+        </button>
+        <button onclick="shareApp()" class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium px-3 py-2 rounded-lg transition" title="Copiar enlace">
+          <i data-lucide="share-2" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">Compartir</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    
+    <!-- Distribution Selector Tabs -->
+    <div class="mb-6">
+      <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Selecciona la Distribución de Probabilidad</label>
+      <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5" id="dist-tabs">
+        <button onclick="selectDistribution('binomial')" id="tab-binomial" class="tab-active py-2.5 px-4 rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2">
+          <span>Binomial</span>
+        </button>
+        <button onclick="selectDistribution('negbinomial')" id="tab-negbinomial" class="tab-inactive py-2.5 px-4 rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2">
+          <span>Binomial Negativa</span>
+        </button>
+        <button onclick="selectDistribution('poisson')" id="tab-poisson" class="tab-inactive py-2.5 px-4 rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2">
+          <span>Poisson</span>
+        </button>
+        <button onclick="selectDistribution('exponential')" id="tab-exponential" class="tab-inactive py-2.5 px-4 rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2">
+          <span>Exponencial</span>
+        </button>
+        <button onclick="selectDistribution('normal')" id="tab-normal" class="tab-inactive py-2.5 px-4 rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2 col-span-2 sm:col-span-1">
+          <span>Normal</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Workspace Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      
+      <!-- Left Column: Parameters & Controls -->
+      <div class="lg:col-span-4 space-y-6">
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+              <i data-lucide="sliders" class="w-4 h-4 text-indigo-600"></i>
+              <span id="form-title">Parámetros: Binomial</span>
+            </h2>
+            <span id="dist-badge" class="text-xs font-medium px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700">Discreta</span>
+          </div>
+
+          <p id="dist-desc" class="text-xs text-slate-500 mb-5 leading-relaxed">
+            Modela el número de éxitos en una secuencia de n ensayos independientes con probabilidad constante p.
+          </p>
+
+          <!-- Dynamic Inputs -->
+          <div id="dynamic-inputs" class="space-y-4"></div>
+
+          <!-- Probability Type Selector -->
+          <div class="mt-4 pt-4 border-t border-slate-100">
+            <label class="block text-xs font-semibold text-slate-700 mb-1.5">Tipo de Probabilidad a Calcular</label>
+            <select id="prob-type" onchange="handleProbTypeChange()" class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 p-2.5">
+              <!-- Options populated dynamically -->
+            </select>
+          </div>
+
+          <!-- Target Value(s) Inputs -->
+          <div id="target-inputs" class="mt-4 space-y-3"></div>
+
+          <!-- Error Box -->
+          <div id="error-box" class="hidden mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2">
+            <i data-lucide="alert-circle" class="w-4 h-4 shrink-0 mt-0.5"></i>
+            <span id="error-msg"></span>
+          </div>
+
+          <!-- Calculate Button -->
+          <button onclick="calculate()" class="mt-6 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-xl shadow-sm transition flex items-center justify-center gap-2">
+            <i data-lucide="calculator" class="w-4 h-4"></i>
+            <span>Calcular y Mostrar Pasos</span>
+          </button>
+        </div>
+
+        <!-- Summary Metrics Card -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Propiedades de la Distribución</h3>
+          <div class="grid grid-cols-3 gap-2 text-center">
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+              <div class="text-xs text-slate-500 mb-1">Media (μ)</div>
+              <div id="stat-mean" class="text-sm font-bold text-slate-900">-</div>
+            </div>
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+              <div class="text-xs text-slate-500 mb-1">Varianza (σ²)</div>
+              <div id="stat-var" class="text-sm font-bold text-slate-900">-</div>
+            </div>
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+              <div class="text-xs text-slate-500 mb-1">Desv. Est. (σ)</div>
+              <div id="stat-sd" class="text-sm font-bold text-slate-900">-</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Results, Steps & Visualization -->
+      <div class="lg:col-span-8 space-y-6">
+        
+        <!-- Main Result Banner -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <span class="text-xs font-semibold uppercase tracking-wider text-indigo-600">Resultado Final</span>
+              <div id="result-expression" class="text-lg font-semibold text-slate-800 mt-1">P(X = 3)</div>
+            </div>
+            <div class="flex items-baseline gap-3 bg-indigo-50 px-5 py-3 rounded-2xl border border-indigo-100">
+              <span id="result-prob" class="text-3xl font-extrabold text-indigo-700">0.0000</span>
+              <span id="result-percent" class="text-sm font-semibold text-indigo-500">(0.00%)</span>
+            </div>
+          </div>
+
+          <!-- AI Interpretation Banner -->
+          <div class="mt-4 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <p id="ai-explanation-text" class="text-xs text-slate-600 italic">
+              Haz clic en "Explicar resultado con IA" para obtener una interpretación práctica de este cálculo.
+            </p>
+            <button onclick="explainResultWithAI()" class="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg border border-violet-200 transition">
+              <i data-lucide="wand-2" class="w-3.5 h-3.5"></i>
+              <span>Explicar resultado con IA</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Chart Card -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <i data-lucide="bar-chart-2" class="w-4 h-4 text-indigo-600"></i>
+              <span>Visualización Gráfica</span>
+            </h3>
+            <div class="flex items-center gap-3 text-xs">
+              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-indigo-600 inline-block"></span> Región Calculada</span>
+              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-slate-200 inline-block"></span> Resto del Dominio</span>
+            </div>
+          </div>
+          <div class="h-64 w-full">
+            <canvas id="probChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Step-by-Step Solution Card -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <h3 class="text-base font-bold text-slate-900 flex items-center gap-2 mb-4">
+            <i data-lucide="list-ordered" class="w-5 h-5 text-indigo-600"></i>
+            <span>Resolución Paso a Paso</span>
+          </h3>
+          <div id="steps-container" class="space-y-4"></div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- AI Solver Modal -->
+  <div id="ai-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden">
+      <div class="bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-4 flex items-center justify-between text-white">
+        <div class="flex items-center gap-2">
+          <i data-lucide="sparkles" class="w-5 h-5"></i>
+          <h3 class="font-bold text-base">Asistente IA de Problemas Estadísticos</h3>
+        </div>
+        <button onclick="closeAiModal()" class="text-white/80 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="p-6 space-y-4">
+        <p class="text-xs text-slate-600 leading-relaxed">
+          Pega el enunciado de tu ejercicio. El analizador detectará automáticamente la distribución, extraerá los parámetros y configurará la calculadora paso a paso.
+        </p>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Enunciado del problema:</label>
+          <textarea id="ai-prompt-input" rows="4" class="w-full border border-slate-300 rounded-xl p-3 text-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Ej: Un centro de seguridad recibe en promedio 12 alertas cada 20 minutos. Calcule la probabilidad de registrar más de 15 alertas..."></textarea>
+        </div>
+
+        <!-- Quick Examples -->
+        <div>
+          <span class="block text-xs font-semibold text-slate-400 mb-2">O prueba con un ejemplo listo:</span>
+          <div class="flex flex-wrap gap-1.5">
+            <button onclick="setAiExample('binomial')" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition">Ejemplo Binomial</button>
+            <button onclick="setAiExample('negbinomial')" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition">Ejemplo Bin. Negativa</button>
+            <button onclick="setAiExample('poisson')" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition">Ejemplo Poisson</button>
+            <button onclick="setAiExample('exponential')" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition">Ejemplo Exponencial</button>
+            <button onclick="setAiExample('normal')" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition">Ejemplo Normal</button>
+          </div>
+        </div>
+
+        <div id="ai-status" class="hidden text-xs p-3 rounded-xl bg-indigo-50 text-indigo-700 font-medium"></div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button onclick="closeAiModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition">Cancelar</button>
+          <button onclick="parseStatementWithAI()" class="px-5 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition flex items-center gap-2">
+            <i data-lucide="cpu" class="w-4 h-4"></i>
+            <span>Analizar y Resolver</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white text-xs font-medium px-4 py-3 rounded-xl shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50">
+    Enlace copiado al portapapeles
+  </div>
+
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    let currentDist = 'binomial';
+    let chartInstance = null;
+    let lastCalculation = null;
+
+    // Distribution Definitions
+    const distributions = {
+      binomial: {
+        name: 'Binomial',
+        type: 'Discreta',
+        desc: 'Modela el número de éxitos (x) en n ensayos independientes de Bernoulli, cada uno con probabilidad constante de éxito p.',
+        params: [
+          { id: 'n', label: 'Número de ensayos (n)', default: 10, step: 1, min: 1 },
+          { id: 'p', label: 'Probabilidad de éxito (p)', default: 0.5, step: 0.01, min: 0, max: 1 }
+        ],
+        probTypes: [
+          { value: 'eq', label: 'Exactamente x: P(X = x)' },
+          { value: 'le', label: 'Como máximo x: P(X ≤ x)' },
+          { value: 'lt', label: 'Menor que x: P(X < x)' },
+          { value: 'ge', label: 'Al menos x: P(X ≥ x)' },
+          { value: 'gt', label: 'Más de x: P(X > x)' },
+          { value: 'between', label: 'Entre a y b: P(a ≤ X ≤ b)' }
+        ],
+        defaultTarget: { x: 5, a: 3, b: 7 }
+      },
+      negbinomial: {
+        name: 'Binomial Negativa',
+        type: 'Discreta',
+        desc: 'Modela el número total de intentos (x) necesarios para alcanzar exactamente r éxitos en ensayos independientes con probabilidad p.',
+        params: [
+          { id: 'r', label: 'Número de éxitos deseados (r)', default: 5, step: 1, min: 1 },
+          { id: 'p', label: 'Probabilidad de éxito (p)', default: 0.75, step: 0.01, min: 0.0001, max: 1 }
+        ],
+        probTypes: [
+          { value: 'eq', label: 'Exactamente en el intento x: P(X = x)' },
+          { value: 'le', label: 'En un máximo de x intentos: P(X ≤ x)' },
+          { value: 'lt', label: 'En menos de x intentos: P(X < x)' },
+          { value: 'ge', label: 'Al menos x intentos: P(X ≥ x)' },
+          { value: 'gt', label: 'Más de x intentos: P(X > x)' },
+          { value: 'between', label: 'Entre a y b intentos: P(a ≤ X ≤ b)' }
+        ],
+        defaultTarget: { x: 7, a: 5, b: 8 }
+      },
+      poisson: {
+        name: 'Poisson',
+        type: 'Discreta',
+        desc: 'Modela el número de eventos independientes (x) que ocurren en un intervalo continuo dada una tasa promedio constante λ.',
+        params: [
+          { id: 'lambda', label: 'Tasa promedio de eventos (λ)', default: 12, step: 0.1, min: 0.0001 }
+        ],
+        probTypes: [
+          { value: 'eq', label: 'Exactamente x eventos: P(X = x)' },
+          { value: 'le', label: 'Como máximo x eventos: P(X ≤ x)' },
+          { value: 'lt', label: 'Menos de x eventos: P(X < x)' },
+          { value: 'ge', label: 'Al menos x eventos: P(X ≥ x)' },
+          { value: 'gt', label: 'Más de x eventos: P(X > x)' },
+          { value: 'between', label: 'Entre a y b eventos: P(a ≤ X ≤ b)' }
+        ],
+        defaultTarget: { x: 12, a: 10, b: 15 }
+      },
+      exponential: {
+        name: 'Exponencial',
+        type: 'Continua',
+        desc: 'Modela el tiempo de espera continuo hasta que ocurre el siguiente evento en un proceso de Poisson con tasa λ.',
+        params: [
+          { id: 'lambda', label: 'Tasa de ocurrencia (λ)', default: 0.2, step: 0.01, min: 0.0001 }
+        ],
+        probTypes: [
+          { value: 'le', label: 'Antes o igual a t: P(X ≤ t)' },
+          { value: 'gt', label: 'Más de t: P(X > t)' },
+          { value: 'between', label: 'Entre a y b: P(a ≤ X ≤ b)' }
+        ],
+        defaultTarget: { x: 4, a: 3, b: 8 }
+      },
+      normal: {
+        name: 'Normal (Gaussiana)',
+        type: 'Continua',
+        desc: 'Distribución continua simétrica definida por su media (μ) y desviación estándar (σ).',
+        params: [
+          { id: 'mu', label: 'Media poblacional (μ)', default: 100, step: 0.1 },
+          { id: 'sigma', label: 'Desviación estándar (σ)', default: 15, step: 0.1, min: 0.0001 }
+        ],
+        probTypes: [
+          { value: 'le', label: 'Menor o igual a x: P(X ≤ x)' },
+          { value: 'gt', label: 'Mayor que x: P(X > x)' },
+          { value: 'between', label: 'Entre a y b: P(a ≤ X ≤ b)' }
+        ],
+        defaultTarget: { x: 115, a: 85, b: 115 }
+      }
+    };
+
+    // Math Helpers
+    function logFactorial(n) {
+      if (n <= 1) return 0;
+      let res = 0;
+      for (let i = 2; i <= n; i++) res += Math.log(i);
+      return res;
+    }
+
+    function logComb(n, k) {
+      if (k < 0 || k > n) return -Infinity;
+      return logFactorial(n) - logFactorial(k) - logFactorial(n - k);
+    }
+
+    function binomialPMF(k, n, p) {
+      if (k < 0 || k > n) return 0;
+      if (p === 0) return k === 0 ? 1 : 0;
+      if (p === 1) return k === n ? 1 : 0;
+      const logP = logComb(n, k) + k * Math.log(p) + (n - k) * Math.log(1 - p);
+      return Math.exp(logP);
+    }
+
+    // Negative Binomial PMF: x = total trials to get r successes
+    function negBinomialPMF(x, r, p) {
+      if (x < r) return 0;
+      if (p === 1) return x === r ? 1 : 0;
+      const logP = logComb(x - 1, r - 1) + r * Math.log(p) + (x - r) * Math.log(1 - p);
+      return Math.exp(logP);
+    }
+
+    function poissonPMF(k, lambda) {
+      if (k < 0) return 0;
+      const logP = -lambda + k * Math.log(lambda) - logFactorial(k);
+      return Math.exp(logP);
+    }
+
+    function exponentialPDF(x, lambda) {
+      if (x < 0) return 0;
+      return lambda * Math.exp(-lambda * x);
+    }
+
+    function exponentialCDF(x, lambda) {
+      if (x < 0) return 0;
+      return 1 - Math.exp(-lambda * x);
+    }
+
+    function normalPDF(x, mu, sigma) {
+      const z = (x - mu) / sigma;
+      return (1 / (sigma * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * z * z);
+    }
+
+    // Error function approximation (Abramowitz & Stegun)
+    function erf(x) {
+      const sign = x >= 0 ? 1 : -1;
+      x = Math.abs(x);
+      const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741;
+      const a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
+      const t = 1.0 / (1.0 + p * x);
+      const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+      return sign * y;
+    }
+
+    function normalCDF(x, mu, sigma) {
+      return 0.5 * (1 + erf((x - mu) / (sigma * Math.SQRT2)));
+    }
+
+    // UI Rendering
+    function selectDistribution(distKey) {
+      currentDist = distKey;
+      const dist = distributions[distKey];
+
+      // Update tabs
+      Object.keys(distributions).forEach(key => {
+        const btn = document.getElementById(`tab-${key}`);
+        btn.className = key === distKey
+          ? 'tab-active py-2.5 px-4 rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2'
+          : 'tab-inactive py-2.5 px-4 rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2';
+      });
+
+      document.getElementById('form-title').textContent = `Parámetros: ${dist.name}`;
+      document.getElementById('dist-badge').textContent = dist.type;
+      document.getElementById('dist-desc').textContent = dist.desc;
+
+      // Render parameter inputs
+      const paramsContainer = document.getElementById('dynamic-inputs');
+      paramsContainer.innerHTML = dist.params.map(p => `
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">${p.label}</label>
+          <input type="number" id="param-${p.id}" value="${p.default}" step="${p.step || 'any'}"
+            class="w-full bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 p-2.5">
+        </div>
+      `).join('');
+
+      // Populate prob types
+      const probSelect = document.getElementById('prob-type');
+      probSelect.innerHTML = dist.probTypes.map(pt => `<option value="${pt.value}">${pt.label}</option>`).join('');
+
+      handleProbTypeChange();
+      calculate();
+    }
+
+    function handleProbTypeChange() {
+      const type = document.getElementById('prob-type').value;
+      const dist = distributions[currentDist];
+      const container = document.getElementById('target-inputs');
+      const isDiscrete = dist.type === 'Discreta';
+      const step = isDiscrete ? '1' : 'any';
+      const varLabel = currentDist === 'exponential' ? 't' : 'x';
+
+      if (type === 'between') {
+        container.innerHTML = `
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Límite inferior (a)</label>
+              <input type="number" id="target-a" value="${dist.defaultTarget.a}" step="${step}" class="w-full bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-xl p-2.5">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Límite superior (b)</label>
+              <input type="number" id="target-b" value="${dist.defaultTarget.b}" step="${step}" class="w-full bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-xl p-2.5">
+            </div>
+          </div>
+        `;
+      } else {
+        container.innerHTML = `
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Valor objetivo (${varLabel})</label>
+            <input type="number" id="target-x" value="${dist.defaultTarget.x}" step="${step}" class="w-full bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-xl p-2.5">
+          </div>
+        `;
+      }
+    }
+
+    function showError(msg) {
+      const box = document.getElementById('error-box');
+      document.getElementById('error-msg').textContent = msg;
+      box.classList.remove('hidden');
+    }
+
+    function hideError() {
+      document.getElementById('error-box').classList.add('hidden');
+    }
+
+    function renderLatex(element, latex) {
+      katex.render(latex, element, { throwOnError: false, displayMode: true });
+    }
+
+    function calculate() {
+      hideError();
+      const type = document.getElementById('prob-type').value;
+      let prob = 0;
+      let mean = 0, variance = 0, sd = 0;
+      let exprText = '';
+      let steps = [];
+      let chartData = null;
+
+      try {
+        if (currentDist === 'binomial') {
+          const n = parseInt(document.getElementById('param-n').value);
+          const p = parseFloat(document.getElementById('param-p').value);
+          if (isNaN(n) || n < 1) throw new Error('El número de ensayos (n) debe ser un entero ≥ 1.');
+          if (isNaN(p) || p < 0 || p > 1) throw new Error('La probabilidad (p) debe estar entre 0 y 1.');
+
+          const q = 1 - p;
+          mean = n * p;
+          variance = n * p * q;
+          sd = Math.sqrt(variance);
+
+          const pmf = k => binomialPMF(k, n, p);
+          const res = computeDiscreteProb(type, pmf, 0, n, 'X');
+          prob = res.prob;
+          exprText = res.expr;
+
+          steps = [
+            {
+              title: '1. Identificación de parámetros',
+              text: `Ensayos independientes n = ${n}, probabilidad de éxito p = ${p}, probabilidad de fracaso q = 1 - p = ${q.toFixed(4)}.`,
+              latex: `X \sim \text{Binomial}(n = ${n},\; p = ${p})`
+            },
+            {
+              title: '2. Fórmula de la Función de Masa de Probabilidad (FMP)',
+              text: 'Para cada valor exacto k se aplica:',
+              latex: `P(X = k) = \binom{${n}}{k} (${p})^k (${q.toFixed(4)})^{${n}-k}`
+            },
+            {
+              title: '3. Desarrollo y sustitución',
+              text: res.detailText,
+              latex: res.detailLatex
+            },
+            {
+              title: '4. Conclusión',
+              text: `La probabilidad resultante es ${prob.toFixed(6)} (${(prob * 100).toFixed(2)}%).`,
+              latex: `${res.latexExpr} = \mathbf{${prob.toFixed(5)}}`
+            }
+          ];
+
+          chartData = buildDiscreteChart(0, n, pmf, res.highlightFn);
+
+        } else if (currentDist === 'negbinomial') {
+          const r = parseInt(document.getElementById('param-r').value);
+          const p = parseFloat(document.getElementById('param-p').value);
+          if (isNaN(r) || r < 1) throw new Error('El número de éxitos (r) debe ser un entero ≥ 1.');
+          if (isNaN(p) || p <= 0 || p > 1) throw new Error('La probabilidad (p) debe estar en (0, 1].');
+
+          const q = 1 - p;
+          mean = r / p;
+          variance = (r * q) / (p * p);
+          sd = Math.sqrt(variance);
+
+          const maxRange = Math.max(r + 25, Math.ceil(mean + 5 * sd));
+          const pmf = x => negBinomialPMF(x, r, p);
+          const res = computeDiscreteProb(type, pmf, r, maxRange, 'X');
+          prob = res.prob;
+          exprText = res.expr;
+
+          steps = [
+            {
+              title: '1. Identificación de parámetros',
+              text: `Éxitos requeridos r = ${r}, probabilidad de éxito p = ${p}, fracaso q = ${q.toFixed(4)}. El dominio inicia en X = ${r}.`,
+              latex: `X \sim \text{BinomialNegativa}(r = ${r},\; p = ${p})`
+            },
+            {
+              title: '2. Fórmula para el x-ésimo intento',
+              text: 'El último intento debe ser éxito y en los x - 1 anteriores deben ocurrir r - 1 éxitos:',
+              latex: `P(X = x) = \binom{x - 1}{${r - 1}} (${p})^{${r}} (${q.toFixed(4)})^{x - ${r}}`
+            },
+            {
+              title: '3. Desarrollo y sustitución',
+              text: res.detailText,
+              latex: res.detailLatex
+            },
+            {
+              title: '4. Conclusión',
+              text: `La probabilidad de que ocurra el evento es ${prob.toFixed(6)} (${(prob * 100).toFixed(2)}%).`,
+              latex: `${res.latexExpr} = \mathbf{${prob.toFixed(5)}}`
+            }
+          ];
+
+          chartData = buildDiscreteChart(r, Math.min(maxRange, r + 20), pmf, res.highlightFn);
+
+        } else if (currentDist === 'poisson') {
+          const lambda = parseFloat(document.getElementById('param-lambda').value);
+          if (isNaN(lambda) || lambda <= 0) throw new Error('La tasa promedio (λ) debe ser mayor que 0.');
+
+          mean = lambda;
+          variance = lambda;
+          sd = Math.sqrt(lambda);
+
+          const maxRange = Math.max(25, Math.ceil(lambda + 6 * sd));
+          const pmf = k => poissonPMF(k, lambda);
+          const res = computeDiscreteProb(type, pmf, 0, maxRange, 'X');
+          prob = res.prob;
+          exprText = res.expr;
+
+          steps = [
+            {
+              title: '1. Identificación del parámetro λ',
+              text: `Tasa promedio de ocurrencia en el intervalo dado: λ = ${lambda}.`,
+              latex: `X \sim \text{Poisson}(\lambda = ${lambda})`
+            },
+            {
+              title: '2. Fórmula de Poisson',
+              text: 'La probabilidad de observar exactamente k eventos es:',
+              latex: `P(X = k) = \frac{e^{-${lambda}} \cdot ${lambda}^k}{k!}`
+            },
+            {
+              title: '3. Desarrollo y sustitución',
+              text: res.detailText,
+              latex: res.detailLatex
+            },
+            {
+              title: '4. Conclusión',
+              text: `La probabilidad obtenida es ${prob.toFixed(6)} (${(prob * 100).toFixed(2)}%).`,
+              latex: `${res.latexExpr} = \mathbf{${prob.toFixed(5)}}`
+            }
+          ];
+
+          const startPlot = Math.max(0, Math.floor(lambda - 4 * sd));
+          const endPlot = Math.max(15, Math.ceil(lambda + 4 * sd));
+          chartData = buildDiscreteChart(startPlot, endPlot, pmf, res.highlightFn);
+
+        } else if (currentDist === 'exponential') {
+          const lambda = parseFloat(document.getElementById('param-lambda').value);
+          if (isNaN(lambda) || lambda <= 0) throw new Error('La tasa (λ) debe ser mayor que 0.');
+
+          mean = 1 / lambda;
+          variance = 1 / (lambda * lambda);
+          sd = 1 / lambda;
+
+          let detailText = '', detailLatex = '', latexExpr = '', highlightFn = () => false;
+
+          if (type === 'le') {
+            const t = parseFloat(document.getElementById('target-x').value);
+            if (isNaN(t) || t < 0) throw new Error('El tiempo t debe ser ≥ 0.');
+            prob = exponentialCDF(t, lambda);
+            exprText = `P(T ≤ ${t})`;
+            latexExpr = `P(T \le ${t})`;
+            detailText = `Evaluamos la función de distribución acumulada en t = ${t}:`;
+            detailLatex = `P(T \le ${t}) = 1 - e^{-${lambda} \cdot ${t}} = 1 - e^{-${(lambda * t).toFixed(4)}} = 1 - ${Math.exp(-lambda * t).toFixed(5)}`;
+            highlightFn = x => x <= t;
+          } else if (type === 'gt') {
+            const t = parseFloat(document.getElementById('target-x').value);
+            if (isNaN(t) || t < 0) throw new Error('El tiempo t debe ser ≥ 0.');
+            prob = 1 - exponentialCDF(t, lambda);
+            exprText = `P(T > ${t})`;
+            latexExpr = `P(T > ${t})`;
+            detailText = `Usamos la función de supervivencia exponencial para t = ${t}:`;
+            detailLatex = `P(T > ${t}) = e^{-${lambda} \cdot ${t}} = e^{-${(lambda * t).toFixed(4)}}`;
+            highlightFn = x => x >= t;
+          } else if (type === 'between') {
+            const a = parseFloat(document.getElementById('target-a').value);
+            const b = parseFloat(document.getElementById('target-b').value);
+            if (isNaN(a) || isNaN(b) || a < 0 || b < a) throw new Error('Verifica que 0 ≤ a ≤ b.');
+            prob = exponentialCDF(b, lambda) - exponentialCDF(a, lambda);
+            exprText = `P(${a} ≤ T ≤ ${b})`;
+            latexExpr = `P(${a} \le T \le ${b})`;
+            detailText = `Restamos las probabilidades acumuladas en b = ${b} y a = ${a}:`;
+            detailLatex = `P(${a} \le T \le ${b}) = e^{-${lambda}(${a})} - e^{-${lambda}(${b})} = ${Math.exp(-lambda * a).toFixed(5)} - ${Math.exp(-lambda * b).toFixed(5)}`;
+            highlightFn = x => x >= a && x <= b;
+          }
+
+          steps = [
+            {
+              title: '1. Identificación de parámetros',
+              text: `Tasa λ = ${lambda}, tiempo medio entre eventos μ = 1/λ = ${mean.toFixed(4)}.`,
+              latex: `T \sim \text{Exponencial}(\lambda = ${lambda})`
+            },
+            {
+              title: '2. Función de Distribución Acumulada (FDA)',
+              text: 'Para cualquier tiempo t ≥ 0:',
+              latex: `F(t) = P(T \le t) = 1 - e^{-${lambda}t}`
+            },
+            {
+              title: '3. Sustitución y cálculo',
+              text: detailText,
+              latex: detailLatex
+            },
+            {
+              title: '4. Conclusión',
+              text: `El área bajo la curva de densidad es ${prob.toFixed(6)} (${(prob * 100).toFixed(2)}%).`,
+              latex: `${latexExpr} = \mathbf{${prob.toFixed(5)}}`
+            }
+          ];
+
+          const maxT = Math.max(mean * 4.5, 10);
+          chartData = buildContinuousChart(0, maxT, x => exponentialPDF(x, lambda), highlightFn);
+
+        } else if (currentDist === 'normal') {
+          const mu = parseFloat(document.getElementById('param-mu').value);
+          const sigma = parseFloat(document.getElementById('param-sigma').value);
+          if (isNaN(mu)) throw new Error('Ingresa un valor válido para la media (μ).');
+          if (isNaN(sigma) || sigma <= 0) throw new Error('La desviación estándar (σ) debe ser mayor que 0.');
+
+          mean = mu;
+          sd = sigma;
+          variance = sigma * sigma;
+
+          let detailText = '', detailLatex = '', latexExpr = '', highlightFn = () => false;
+
+          if (type === 'le') {
+            const x = parseFloat(document.getElementById('target-x').value);
+            if (isNaN(x)) throw new Error('Ingresa un valor objetivo x válido.');
+            const z = (x - mu) / sigma;
+            prob = normalCDF(x, mu, sigma);
+            exprText = `P(X ≤ ${x})`;
+            latexExpr = `P(X \le ${x})`;
+            detailText = `Estandarizamos el valor x = ${x} a puntuación Z:`;
+            detailLatex = `Z = \frac{${x} - ${mu}}{${sigma}} = ${z.toFixed(4)} \implies \Phi(${z.toFixed(4)})`;
+            highlightFn = val => val <= x;
+          } else if (type === 'gt') {
+            const x = parseFloat(document.getElementById('target-x').value);
+            if (isNaN(x)) throw new Error('Ingresa un valor objetivo x válido.');
+            const z = (x - mu) / sigma;
+            prob = 1 - normalCDF(x, mu, sigma);
+            exprText = `P(X > ${x})`;
+            latexExpr = `P(X > ${x})`;
+            detailText = `Estandarizamos x = ${x} y tomamos el complemento derecho:`;
+            detailLatex = `Z = \frac{${x} - ${mu}}{${sigma}} = ${z.toFixed(4)} \implies 1 - \Phi(${z.toFixed(4)})`;
+            highlightFn = val => val >= x;
+          } else if (type === 'between') {
+            const a = parseFloat(document.getElementById('target-a').value);
+            const b = parseFloat(document.getElementById('target-b').value);
+            if (isNaN(a) || isNaN(b) || b < a) throw new Error('Verifica que a ≤ b.');
+            const za = (a - mu) / sigma;
+            const zb = (b - mu) / sigma;
+            prob = normalCDF(b, mu, sigma) - normalCDF(a, mu, sigma);
+            exprText = `P(${a} ≤ X ≤ ${b})`;
+            latexExpr = `P(${a} \le X \le ${b})`;
+            detailText = `Calculamos las puntuaciones Z para ambos límites:`;
+            detailLatex = `Z_a = ${za.toFixed(4)},\; Z_b = ${zb.toFixed(4)} \implies \Phi(${zb.toFixed(4)}) - \Phi(${za.toFixed(4)})`;
+            highlightFn = val => val >= a && val <= b;
+          }
+
+          steps = [
+            {
+              title: '1. Identificación de parámetros',
+              text: `Media μ = ${mu}, desviación estándar σ = ${sigma}.`,
+              latex: `X \sim N(\mu = ${mu},\; \sigma = ${sigma})`
+            },
+            {
+              title: '2. Estandarización a Normal Estándar Z ~ N(0, 1)',
+              text: 'Convertimos la variable X mediante la transformación lineal:',
+              latex: `Z = \frac{X - \mu}{\sigma}`
+            },
+            {
+              title: '3. Cálculo de puntuación Z y área acumulada',
+              text: detailText,
+              latex: detailLatex
+            },
+            {
+              title: '4. Conclusión',
+              text: `La probabilidad bajo la campana de Gauss es ${prob.toFixed(6)} (${(prob * 100).toFixed(2)}%).`,
+              latex: `${latexExpr} = \mathbf{${prob.toFixed(5)}}`
+            }
+          ];
+
+          chartData = buildContinuousChart(mu - 4 * sigma, mu + 4 * sigma, val => normalPDF(val, mu, sigma), highlightFn);
+        }
+
+        // Update UI Stats
+        document.getElementById('stat-mean').textContent = mean.toFixed(3);
+        document.getElementById('stat-var').textContent = variance.toFixed(3);
+        document.getElementById('stat-sd').textContent = sd.toFixed(3);
+
+        // Update Main Result Banner
+        document.getElementById('result-expression').textContent = exprText;
+        document.getElementById('result-prob').textContent = prob.toFixed(5);
+        document.getElementById('result-percent').textContent = `(${(prob * 100).toFixed(2)}%)`;
+
+        // Render Steps
+        const stepsContainer = document.getElementById('steps-container');
+        stepsContainer.innerHTML = steps.map((s, idx) => `
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-100">
+            <div class="text-xs font-bold text-indigo-700 mb-1">${s.title}</div>
+            <p class="text-xs text-slate-600 mb-2">${s.text}</p>
+            <div id="latex-step-${idx}" class="bg-white p-2.5 rounded-lg border border-slate-200/70 text-slate-900"></div>
+          </div>
+        `).join('');
+
+        steps.forEach((s, idx) => {
+          renderLatex(document.getElementById(`latex-step-${idx}`), s.latex);
+        });
+
+        // Update Chart
+        renderChart(chartData);
+
+        // Store state for AI explainer
+        lastCalculation = {
+          distName: distributions[currentDist].name,
+          exprText,
+          prob,
+          mean,
+          sd
+        };
+        document.getElementById('ai-explanation-text').textContent = 'Haz clic en "Explicar resultado con IA" para obtener una interpretación práctica de este cálculo.';
+
+      } catch (err) {
+        showError(err.message);
+      }
+    }
+
+    function computeDiscreteProb(type, pmf, minVal, maxVal, varName) {
+      let prob = 0, expr = '', latexExpr = '', detailText = '', detailLatex = '', highlightFn = () => false;
+
+      if (type === 'eq') {
+        const x = parseInt(document.getElementById('target-x').value);
+        if (isNaN(x) || x < minVal) throw new Error(`El valor de ${varName.toLowerCase()} debe ser un entero ≥ ${minVal}.`);
+        prob = pmf(x);
+        expr = `P(${varName} = ${x})`;
+        latexExpr = `P(${varName} = ${x})`;
+        detailText = `Evaluamos directamente la función de probabilidad en ${varName.toLowerCase()} = ${x}:`;
+        detailLatex = `P(${varName} = ${x}) = ${prob.toFixed(6)}`;
+        highlightFn = k => k === x;
+      } else if (type === 'le') {
+        const x = parseInt(document.getElementById('target-x').value);
+        if (isNaN(x) || x < minVal) throw new Error(`El valor de ${varName.toLowerCase()} debe ser ≥ ${minVal}.`);
+        for (let k = minVal; k <= x; k++) prob += pmf(k);
+        expr = `P(${varName} ≤ ${x})`;
+        latexExpr = `P(${varName} \le ${x})`;
+        detailText = `Sumamos las probabilidades puntuales desde ${minVal} hasta ${x}:`;
+        detailLatex = `P(${varName} \le ${x}) = \sum_{k=${minVal}}^{${x}} P(${varName} = k) = ${prob.toFixed(6)}`;
+        highlightFn = k => k <= x;
+      } else if (type === 'lt') {
+        const x = parseInt(document.getElementById('target-x').value);
+        if (isNaN(x) || x <= minVal) throw new Error(`El valor de ${varName.toLowerCase()} debe ser > ${minVal}.`);
+        for (let k = minVal; k < x; k++) prob += pmf(k);
+        expr = `P(${varName} < ${x}) = P(${varName} ≤ ${x - 1})`;
+        latexExpr = `P(${varName} < ${x})`;
+        detailText = `Al ser una variable discreta, sumamos desde ${minVal} hasta ${x - 1}:`;
+        detailLatex = `P(${varName} < ${x}) = \sum_{k=${minVal}}^{${x - 1}} P(${varName} = k) = ${prob.toFixed(6)}`;
+        highlightFn = k => k < x;
+      } else if (type === 'ge') {
+        const x = parseInt(document.getElementById('target-x').value);
+        if (isNaN(x) || x < minVal) throw new Error(`El valor de ${varName.toLowerCase()} debe ser ≥ ${minVal}.`);
+        let cumBelow = 0;
+        for (let k = minVal; k < x; k++) cumBelow += pmf(k);
+        prob = Math.max(0, 1 - cumBelow);
+        expr = `P(${varName} ≥ ${x})`;
+        latexExpr = `P(${varName} \ge ${x})`;
+        detailText = `Aplicamos la regla del complemento: 1 - P(${varName} ≤ ${x - 1}):`;
+        detailLatex = `P(${varName} \ge ${x}) = 1 - ${cumBelow.toFixed(6)} = ${prob.toFixed(6)}`;
+        highlightFn = k => k >= x;
+      } else if (type === 'gt') {
+        const x = parseInt(document.getElementById('target-x').value);
+        if (isNaN(x) || x < minVal) throw new Error(`El valor de ${varName.toLowerCase()} debe ser ≥ ${minVal}.`);
+        let cumLe = 0;
+        for (let k = minVal; k <= x; k++) cumLe += pmf(k);
+        prob = Math.max(0, 1 - cumLe);
+        expr = `P(${varName} > ${x})`;
+        latexExpr = `P(${varName} > ${x})`;
+        detailText = `Aplicamos la regla del complemento: 1 - P(${varName} ≤ ${x}):`;
+        detailLatex = `P(${varName} > ${x}) = 1 - ${cumLe.toFixed(6)} = ${prob.toFixed(6)}`;
+        highlightFn = k => k > x;
+      } else if (type === 'between') {
+        const a = parseInt(document.getElementById('target-a').value);
+        const b = parseInt(document.getElementById('target-b').value);
+        if (isNaN(a) || isNaN(b) || a < minVal || b < a) throw new Error(`Verifica que ${minVal} ≤ a ≤ b.`);
+        for (let k = a; k <= b; k++) prob += pmf(k);
+        expr = `P(${a} ≤ ${varName} ≤ ${b})`;
+        latexExpr = `P(${a} \le ${varName} \le ${b})`;
+        detailText = `Sumamos todas las probabilidades puntuales en el intervalo [${a}, ${b}]:`;
+        detailLatex = `P(${a} \le ${varName} \le ${b}) = \sum_{k=${a}}^{${b}} P(${varName} = k) = ${prob.toFixed(6)}`;
+        highlightFn = k => k >= a && k <= b;
+      }
+
+      return { prob, expr, latexExpr, detailText, detailLatex, highlightFn };
+    }
+
+    // Chart Builders
+    function buildDiscreteChart(start, end, pmf, highlightFn) {
+      const labels = [];
+      const data = [];
+      const bgColors = [];
+
+      for (let k = start; k <= end; k++) {
+        labels.push(k.toString());
+        data.push(pmf(k));
+        bgColors.push(highlightFn(k) ? '#4f46e5' : '#cbd5e1');
+      }
+
+      return {
+        type: 'bar',
+        labels,
+        datasets: [{
+          label: 'P(X = x)',
+          data,
+          backgroundColor: bgColors,
+          borderRadius: 6
+        }]
+      };
+    }
+
+    function buildContinuousChart(minX, maxX, pdf, highlightFn) {
+      const steps = 120;
+      const stepSize = (maxX - minX) / steps;
+      const labels = [];
+      const allData = [];
+      const shadedData = [];
+
+      for (let i = 0; i <= steps; i++) {
+        const x = minX + i * stepSize;
+        const y = pdf(x);
+        labels.push(x.toFixed(2));
+        allData.push(y);
+        shadedData.push(highlightFn(x) ? y : null);
+      }
+
+      return {
+        type: 'line',
+        labels,
+        datasets: [
+          {
+            label: 'Área calculada',
+            data: shadedData,
+            borderColor: '#4f46e5',
+            backgroundColor: 'rgba(79, 70, 229, 0.35)',
+            fill: true,
+            pointRadius: 0,
+            borderWidth: 2,
+            tension: 0.3
+          },
+          {
+            label: 'Función de Densidad f(x)',
+            data: allData,
+            borderColor: '#94a3b8',
+            backgroundColor: 'transparent',
+            fill: false,
+            pointRadius: 0,
+            borderWidth: 2,
+            tension: 0.3
+          }
+        ]
+      };
+    }
+
+    function renderChart(chartData) {
+      const ctx = document.getElementById('probChart').getContext('2d');
+      if (chartInstance) chartInstance.destroy();
+
+      chartInstance = new Chart(ctx, {
+        type: chartData.type,
+        data: {
+          labels: chartData.labels,
+          datasets: chartData.datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: ctx => `Densidad / Prob: ${Number(ctx.raw).toFixed(5)}`
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { maxTicksLimit: 12, font: { size: 11 } }
+            },
+            y: {
+              beginAtZero: true,
+              grid: { color: '#f1f5f9' },
+              ticks: { font: { size: 11 } }
+            }
+          }
+        }
+      });
+    }
+
+    // AI Assistant Features (Intelligent NLP Rule Engine)
+    function openAiModal() {
+      document.getElementById('ai-modal').classList.remove('hidden');
+      document.getElementById('ai-status').classList.add('hidden');
+    }
+
+    function closeAiModal() {
+      document.getElementById('ai-modal').classList.add('hidden');
+    }
+
+    function setAiExample(type) {
+      const examples = {
+        binomial: 'En una línea de producción, el 15% de los componentes resultan defectuosos. Si se selecciona una muestra aleatoria de 20 componentes, calcule la probabilidad de encontrar como máximo 4 defectuosos.',
+        negbinomial: 'Un protocolo de red necesita 5 retransmisiones exitosas. Cada intento tiene una probabilidad del 75% de éxito. Determine la probabilidad de que el quinto éxito ocurra exactamente en el séptimo intento.',
+        poisson: 'Un Centro de Operaciones de Seguridad recibe en promedio 12 alertas cada 20 minutos. Calcule la probabilidad de registrar más de 15 alertas durante ese intervalo.',
+        exponential: 'Un servidor recibe mensajes a una tasa de 0.2 mensajes por segundo. Determine la probabilidad de que el siguiente mensaje llegue antes de 4 segundos.',
+        normal: 'El tiempo de respuesta de una API sigue una distribución normal con media de 120 ms y desviación estándar de 15 ms. Calcule la probabilidad de que una petición tarde más de 145 ms.'
+      };
+      document.getElementById('ai-prompt-input').value = examples[type];
+    }
+
+    function parseStatementWithAI() {
+      const text = document.getElementById('ai-prompt-input').value.toLowerCase().trim();
+      const statusEl = document.getElementById('ai-status');
+
+      if (!text) {
+        statusEl.textContent = 'Por favor escribe o pega el enunciado del ejercicio.';
+        statusEl.classList.remove('hidden');
+        return;
+      }
+
+      statusEl.textContent = 'Analizando estructura probabilística y extrayendo parámetros...';
+      statusEl.classList.remove('hidden');
+
+      setTimeout(() => {
+        const numbers = (text.match(/\d+(\.\d+)?/g) || []).map(Number);
+        let detectedDist = 'poisson';
+
+        if (text.includes('normal') || text.includes('desviación') || text.includes('desviacion') || text.includes('gauss')) {
+          detectedDist = 'normal';
+        } else if (text.includes('negativa') || (text.includes('intento') && (text.includes('quinto') || text.includes('éxito') || text.includes('exito')))) {
+          detectedDist = 'negbinomial';
+        } else if (text.includes('exponencial') || text.includes('tiempo de espera') || text.includes('siguiente mensaje') || text.includes('antes de')) {
+          detectedDist = 'exponential';
+        } else if (text.includes('binomial') || text.includes('muestra') || text.includes('defectuoso') || text.includes('ensayo')) {
+          detectedDist = 'binomial';
+        } else if (text.includes('poisson') || text.includes('promedio') || text.includes('alerta') || text.includes('tasa')) {
+          detectedDist = 'poisson';
+        }
+
+        // Detect inequality type
+        let probType = 'eq';
+        if (text.includes('entre')) probType = 'between';
+        else if (text.includes('más de') || text.includes('mas de') || text.includes('mayor que') || text.includes('super')) probType = 'gt';
+        else if (text.includes('al menos') || text.includes('como mínimo') || text.includes('como minimo')) probType = 'ge';
+        else if (text.includes('como máximo') || text.includes('como maximo') || text.includes('a lo sumo') || text.includes('antes de')) probType = 'le';
+        else if (text.includes('menos de') || text.includes('menor que')) probType = 'lt';
+
+        selectDistribution(detectedDist);
+        document.getElementById('prob-type').value = probType;
+        handleProbTypeChange();
+
+        // Populate extracted numbers heuristically
+        if (detectedDist === 'binomial' && numbers.length >= 2) {
+          let pVal = numbers.find(n => n > 0 && n < 1);
+          if (!pVal && text.includes('%')) {
+            const pctIdx = text.indexOf('%');
+            const beforePct = text.slice(0, pctIdx).match(/\d+(\.\d+)?$/);
+            if (beforePct) pVal = parseFloat(beforePct[0]) / 100;
+          }
+          const ints = numbers.filter(n => Number.isInteger(n) && n >= 1);
+          if (ints.length >= 1) document.getElementById('param-n').value = ints[0];
+          if (pVal) document.getElementById('param-p').value = pVal;
+          if (ints.length >= 2 && document.getElementById('target-x')) {
+            document.getElementById('target-x').value = ints[ints.length - 1];
+          }
+        } else if (detectedDist === 'negbinomial' && numbers.length >= 2) {
+          let pVal = numbers.find(n => n > 0 && n < 1);
+          if (!pVal && text.includes('%')) {
+            const pctIdx = text.indexOf('%');
+            const beforePct = text.slice(0, pctIdx).match(/\d+(\.\d+)?$/);
+            if (beforePct) pVal = parseFloat(beforePct[0]) / 100;
+          }
+          const ints = numbers.filter(n => Number.isInteger(n) && n >= 1);
+          if (ints.length >= 1) document.getElementById('param-r').value = ints[0];
+          if (pVal) document.getElementById('param-p').value = pVal;
+          if (ints.length >= 2 && document.getElementById('target-x')) {
+            document.getElementById('target-x').value = ints[ints.length - 1];
+          }
+        } else if (detectedDist === 'poisson' && numbers.length >= 1) {
+          document.getElementById('param-lambda').value = numbers[0];
+          if (numbers.length >= 2 && document.getElementById('target-x')) {
+            document.getElementById('target-x').value = numbers[numbers.length - 1];
+          }
+        } else if (detectedDist === 'exponential' && numbers.length >= 1) {
+          document.getElementById('param-lambda').value = numbers[0];
+          if (numbers.length >= 2 && document.getElementById('target-x')) {
+            document.getElementById('target-x').value = numbers[numbers.length - 1];
+          }
+        } else if (detectedDist === 'normal' && numbers.length >= 2) {
+          document.getElementById('param-mu').value = numbers[0];
+          document.getElementById('param-sigma').value = numbers[1];
+          if (numbers.length >= 3 && document.getElementById('target-x')) {
+            document.getElementById('target-x').value = numbers[2];
+          }
+        }
+
+        calculate();
+        closeAiModal();
+      }, 450);
+    }
+
+    function explainResultWithAI() {
+      if (!lastCalculation) return;
+      const { distName, exprText, prob, mean, sd } = lastCalculation;
+      const pct = (prob * 100).toFixed(2);
+      let rarity = '';
+
+      if (prob < 0.05) rarity = 'un evento estadísticamente poco frecuente (inferior al umbral clásico del 5%)';
+      else if (prob < 0.25) rarity = 'un evento de probabilidad moderada-baja';
+      else if (prob < 0.75) rarity = 'un escenario bastante habitual dentro del comportamiento esperado';
+      else rarity = 'un resultado altamente probable bajo las condiciones del modelo';
+
+      document.getElementById('ai-explanation-text').innerHTML =
+        `<strong>Interpretación IA:</strong> Bajo el modelo <strong>${distName}</strong> (con valor esperado μ = ${mean.toFixed(2)} y dispersión σ = ${sd.toFixed(2)}), la probabilidad <strong>${exprText}</strong> es del <strong>${pct}%</strong>, lo que representa ${rarity}.`;
+    }
+
+    function shareApp() {
+      navigator.clipboard.writeText(window.location.href).then(() => {
+        const toast = document.getElementById('toast');
+        toast.classList.remove('translate-y-20', 'opacity-0');
+        setTimeout(() => {
+          toast.classList.add('translate-y-20', 'opacity-0');
+        }, 2500);
+      });
+    }
+
+    // Initialize default view
+    selectDistribution('binomial');
+  </script>
+</body>
+</html>
